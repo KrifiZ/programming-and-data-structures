@@ -7,7 +7,7 @@ all: hanoi
 hanoi: hanoi.o primlib.o
 	$(CC) $^ -o $@ $(LDLIBS)
 
-hanoi.o: hanoi.c primlib.h
+hanoi.o: hanoi.c hanoi.h primlib.h
 	$(CC) $(CFLAGS) -c hanoi.c
 
 primlib.o: primlib.c primlib.h
