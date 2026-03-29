@@ -1,14 +1,17 @@
-all: testlib
+CC = gcc
+CFLAGS = -g -Wall -pedantic -fsanitize=undefined $(shell pkg-config --cflags sdl2 SDL2_gfx)
+LDLIBS = -fsanitize=undefined $(shell pkg-config --libs sdl2 SDL2_gfx) -lm
 
-testlib: testlib.o primlib.o
-	gcc -fsanitize=undefined -g $^ -o $@  -lSDL2_gfx `sdl2-config --libs` -lm
+all: hanoi
 
-.c.o: 
-	gcc -fsanitize=undefined -g -Wall -pedantic `sdl2-config --cflags` -c  $<
+hanoi: hanoi.o primlib.o
+	$(CC) $^ -o $@ $(LDLIBS)
+
+hanoi.o: hanoi.c primlib.h
+	$(CC) $(CFLAGS) -c hanoi.c
 
 primlib.o: primlib.c primlib.h
-
-testlib.o: testlib.c primlib.h
+	$(CC) $(CFLAGS) -c primlib.c
 
 clean:
-	-rm primlib.o testlib.o testlib
+	rm -f hanoi *.o
