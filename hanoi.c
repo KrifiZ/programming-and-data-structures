@@ -41,7 +41,10 @@ int main(int argc, char* argv[])
         drawAll(gameState);
         
         if (isWon) {
-            gfx_textout(gfx_screenWidth() / 2 - 60, gfx_screenHeight() / 2, "Congratulation", YELLOW);
+            int textX = gfx_screenWidth() / 2 - 60;
+            int textY = gfx_screenHeight() / 6;
+            gfx_textout(textX, textY, "Congratulation", YELLOW);
+
         }
 
         gfx_updateScreen();
