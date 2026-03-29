@@ -20,6 +20,7 @@ void calculateDiscRect(int pegIndex, int discIndexFromBottom, int discSizeLevel,
 void calculatePegRect(int pegIndex, struct Rectangle *rect);
 int getTopDiscRow(int gameState[NUM_PEGS][NUM_DISCS], int pegIndex);
 int keyToPegIndex(int key);
+int checkWon(int gameState[NUM_PEGS][NUM_DISCS]);
 
 int main(int argc, char* argv[])
 {
@@ -32,11 +33,16 @@ int main(int argc, char* argv[])
         gameState[0][i] = NUM_DISCS - i;
     }
     int sourcePeg = -1;
+    int isWon = 0;
 
     while (1) {
         gfx_filledRect(0, 0, gfx_screenWidth() - 1, gfx_screenHeight() - 1, BLACK);
 
         drawAll(gameState);
+        
+        if (isWon) {
+            gfx_textout(gfx_screenWidth() / 2 - 60, gfx_screenHeight() / 2, "Congratulation", YELLOW);
+        }
 
         gfx_updateScreen();
 
@@ -45,28 +51,32 @@ int main(int argc, char* argv[])
             break;
         }
         
-        int pegClicked = keyToPegIndex(key);
-        if (pegClicked != -1) {
-            if (sourcePeg == -1) {
-                if (getTopDiscRow(gameState, pegClicked) != -1) {
-                    sourcePeg = pegClicked;
-                }
-            } else {
-                int targetPeg = pegClicked;
-                if (sourcePeg != targetPeg) {
-                    int srcRow = getTopDiscRow(gameState, sourcePeg);
-                    int dstRow = getTopDiscRow(gameState, targetPeg);
-                    
-                    int srcSize = gameState[sourcePeg][srcRow];
-                    int dstSize = (dstRow == -1) ? (NUM_DISCS + 1) : gameState[targetPeg][dstRow];
-                    
-                    if (srcSize < dstSize) {
-                        gameState[sourcePeg][srcRow] = 0;
-                        gameState[targetPeg][dstRow + 1] = srcSize;
+        if (!isWon) {
+            int pegClicked = keyToPegIndex(key);
+            if (pegClicked != -1) {
+                if (sourcePeg == -1) {
+                    if (getTopDiscRow(gameState, pegClicked) != -1) {
+                        sourcePeg = pegClicked;
                     }
+                } else {
+                    int targetPeg = pegClicked;
+                    if (sourcePeg != targetPeg) {
+                        int srcRow = getTopDiscRow(gameState, sourcePeg);
+                        int dstRow = getTopDiscRow(gameState, targetPeg);
+                        
+                        int srcSize = gameState[sourcePeg][srcRow];
+                        int dstSize = (dstRow == -1) ? (NUM_DISCS + 1) : gameState[targetPeg][dstRow];
+                        
+                        if (srcSize < dstSize) {
+                            gameState[sourcePeg][srcRow] = 0;
+                            gameState[targetPeg][dstRow + 1] = srcSize;
+                        }
+                    }
+                    sourcePeg = -1;
                 }
-                sourcePeg = -1;
             }
+            
+            isWon = checkWon(gameState);
         }
 
         SDL_Delay(10);
@@ -181,4 +191,13 @@ int keyToPegIndex(int key) {
         if (9 < NUM_PEGS) return 9;
     }
     return -1;
+}
+
+int checkWon(int gameState[NUM_PEGS][NUM_DISCS]) {
+    for (int p = 1; p < NUM_PEGS; ++p) {
+        if (gameState[p][NUM_DISCS - 1] != 0) {
+            return 1;
+        }
+    }
+    return 0;
 }
