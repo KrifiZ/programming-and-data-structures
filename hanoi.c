@@ -14,10 +14,12 @@ struct Rectangle {
 
 void drawBackground();
 void drawPegs();
-void drawDiscsForPeg(int pegIndex, int numDiscsOnPeg);
-void drawAll();
+void drawDiscs(int gameState[NUM_PEGS][NUM_DISCS]);
+void drawAll(int gameState[NUM_PEGS][NUM_DISCS]);
 void calculateDiscRect(int pegIndex, int discIndexFromBottom, int discSizeLevel, struct Rectangle *rect);
 void calculatePegRect(int pegIndex, struct Rectangle *rect);
+int getTopDiscRow(int gameState[NUM_PEGS][NUM_DISCS], int pegIndex);
+int keyToPegIndex(int key);
 
 int main(int argc, char* argv[])
 {
@@ -25,10 +27,16 @@ int main(int argc, char* argv[])
         exit(3);
     }
 
+    int gameState[NUM_PEGS][NUM_DISCS] = {0};
+    for (int i = 0; i < NUM_DISCS; ++i) {
+        gameState[0][i] = NUM_DISCS - i;
+    }
+    int sourcePeg = -1;
+
     while (1) {
         gfx_filledRect(0, 0, gfx_screenWidth() - 1, gfx_screenHeight() - 1, BLACK);
 
-        drawAll();
+        drawAll(gameState);
 
         gfx_updateScreen();
 
@@ -36,6 +44,31 @@ int main(int argc, char* argv[])
         if (key == SDLK_ESCAPE || key == SDLK_RETURN) {
             break;
         }
+        
+        int pegClicked = keyToPegIndex(key);
+        if (pegClicked != -1) {
+            if (sourcePeg == -1) {
+                if (getTopDiscRow(gameState, pegClicked) != -1) {
+                    sourcePeg = pegClicked;
+                }
+            } else {
+                int targetPeg = pegClicked;
+                if (sourcePeg != targetPeg) {
+                    int srcRow = getTopDiscRow(gameState, sourcePeg);
+                    int dstRow = getTopDiscRow(gameState, targetPeg);
+                    
+                    int srcSize = gameState[sourcePeg][srcRow];
+                    int dstSize = (dstRow == -1) ? (NUM_DISCS + 1) : gameState[targetPeg][dstRow];
+                    
+                    if (srcSize < dstSize) {
+                        gameState[sourcePeg][srcRow] = 0;
+                        gameState[targetPeg][dstRow + 1] = srcSize;
+                    }
+                }
+                sourcePeg = -1;
+            }
+        }
+
         SDL_Delay(10);
     }
 
@@ -110,21 +143,42 @@ void calculateDiscRect(int pegIndex, int discIndexFromBottom, int discSizeLevel,
     rect->c = RED;
 }
 
-void drawDiscsForPeg(int pegIndex, int numDiscsOnPeg) {
-    // Let's draw discs from largest (bottom) to smallest (top)
-    // discSizeLevel: 0 is largest, NUM_DISCS - 1 is smallest
-    for (int i = 0; i < numDiscsOnPeg; ++i) {
-        struct Rectangle r;
-        int discSizeLevel = i; 
-        calculateDiscRect(pegIndex, i, discSizeLevel, &r);
-        gfx_filledRect(r.x1, r.y1, r.x2, r.y2, r.c);
-        gfx_rect(r.x1, r.y1, r.x2, r.y2, WHITE);
+void drawDiscs(int gameState[NUM_PEGS][NUM_DISCS]) {
+    for (int p = 0; p < NUM_PEGS; ++p) {
+        for (int i = 0; i < NUM_DISCS; ++i) {
+            int discValue = gameState[p][i];
+            if (discValue == 0) continue;
+            
+            struct Rectangle r;
+            int discSizeLevel = NUM_DISCS - discValue; 
+            calculateDiscRect(p, i, discSizeLevel, &r);
+            gfx_filledRect(r.x1, r.y1, r.x2, r.y2, r.c);
+            gfx_rect(r.x1, r.y1, r.x2, r.y2, WHITE);
+        }
     }
 }
 
-void drawAll() {
+void drawAll(int gameState[NUM_PEGS][NUM_DISCS]) {
     drawBackground();
     drawPegs();
-    
-    drawDiscsForPeg(0, NUM_DISCS);
+    drawDiscs(gameState);
+}
+
+int getTopDiscRow(int gameState[NUM_PEGS][NUM_DISCS], int pegIndex) {
+    for (int i = NUM_DISCS - 1; i >= 0; --i) {
+        if (gameState[pegIndex][i] != 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int keyToPegIndex(int key) {
+    if (key >= SDLK_1 && key <= SDLK_9) {
+        int idx = key - SDLK_1;
+        if (idx < NUM_PEGS) return idx;
+    } else if (key == SDLK_0) {
+        if (9 < NUM_PEGS) return 9;
+    }
+    return -1;
 }
