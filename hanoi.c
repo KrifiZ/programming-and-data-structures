@@ -4,6 +4,8 @@
 #define NUM_PEGS 5
 #define NUM_DISCS 8
 
+#define ANIMATION_STEP 10
+
 struct Rectangle {
     int x1;
     int y1;
@@ -12,12 +14,29 @@ struct Rectangle {
     enum color c;
 };
 
+struct AnimatedDisc {
+    int active;
+    int discSize;
+    int fromPeg;
+    int toPeg;
+    int phase;
+    int currentX;
+    int currentY;
+    int targetYDown;
+    int targetYUp;
+    int targetX;
+};
+
 void drawBackground();
 void drawPegs();
 void drawDiscs(int gameState[NUM_PEGS][NUM_DISCS]);
-void drawAll(int gameState[NUM_PEGS][NUM_DISCS]);
+void drawAll(int gameState[NUM_PEGS][NUM_DISCS], struct AnimatedDisc *anim);
+void drawAnimatedDisc(struct AnimatedDisc *anim);
 void calculateDiscRect(int pegIndex, int discIndexFromBottom, int discSizeLevel, struct Rectangle *rect);
 void calculatePegRect(int pegIndex, struct Rectangle *rect);
+int getPegCenterX(int pegIndex);
+int getDiscBottomY(int discIndexFromBottom);
+int getDiscTopY(int discIndexFromBottom);
 int getTopDiscRow(int gameState[NUM_PEGS][NUM_DISCS], int pegIndex);
 int keyToPegIndex(int key);
 int checkWon(int gameState[NUM_PEGS][NUM_DISCS]);
@@ -34,17 +53,18 @@ int main(int argc, char* argv[])
     }
     int sourcePeg = -1;
     int isWon = 0;
+    
+    struct AnimatedDisc anim = {0};
 
     while (1) {
         gfx_filledRect(0, 0, gfx_screenWidth() - 1, gfx_screenHeight() - 1, BLACK);
 
-        drawAll(gameState);
+        drawAll(gameState, &anim);
         
         if (isWon) {
             int textX = gfx_screenWidth() / 2 - 60;
             int textY = gfx_screenHeight() / 6;
             gfx_textout(textX, textY, "Congratulation", YELLOW);
-
         }
 
         gfx_updateScreen();
@@ -55,31 +75,77 @@ int main(int argc, char* argv[])
         }
         
         if (!isWon) {
-            int pegClicked = keyToPegIndex(key);
-            if (pegClicked != -1) {
-                if (sourcePeg == -1) {
-                    if (getTopDiscRow(gameState, pegClicked) != -1) {
-                        sourcePeg = pegClicked;
+            if (anim.active) {
+                if (anim.phase == 0) {
+                    anim.currentY -= ANIMATION_STEP;
+                    if (anim.currentY <= anim.targetYUp) {
+                        anim.currentY = anim.targetYUp;
+                        anim.phase = 1;
                     }
-                } else {
-                    int targetPeg = pegClicked;
-                    if (sourcePeg != targetPeg) {
-                        int srcRow = getTopDiscRow(gameState, sourcePeg);
-                        int dstRow = getTopDiscRow(gameState, targetPeg);
-                        
-                        int srcSize = gameState[sourcePeg][srcRow];
-                        int dstSize = (dstRow == -1) ? (NUM_DISCS + 1) : gameState[targetPeg][dstRow];
-                        
-                        if (srcSize < dstSize) {
-                            gameState[sourcePeg][srcRow] = 0;
-                            gameState[targetPeg][dstRow + 1] = srcSize;
+                } else if (anim.phase == 1) {
+                    if (anim.currentX < anim.targetX) {
+                        anim.currentX += ANIMATION_STEP;
+                        if (anim.currentX >= anim.targetX) {
+                            anim.currentX = anim.targetX;
+                            anim.phase = 2;
                         }
+                    } else if (anim.currentX > anim.targetX) {
+                        anim.currentX -= ANIMATION_STEP;
+                        if (anim.currentX <= anim.targetX) {
+                            anim.currentX = anim.targetX;
+                            anim.phase = 2;
+                        }
+                    } else {
+                        anim.phase = 2;
                     }
-                    sourcePeg = -1;
+                } else if (anim.phase == 2) {
+                    anim.currentY += ANIMATION_STEP;
+                    if (anim.currentY >= anim.targetYDown) {
+                        anim.currentY = anim.targetYDown;
+                        int dstRow = getTopDiscRow(gameState, anim.toPeg);
+                        gameState[anim.toPeg][dstRow + 1] = anim.discSize;
+                        anim.active = 0;
+                        isWon = checkWon(gameState);
+                    }
+                }
+            } else {
+                int pegClicked = keyToPegIndex(key);
+                if (pegClicked != -1) {
+                    if (sourcePeg == -1) {
+                        if (getTopDiscRow(gameState, pegClicked) != -1) {
+                            sourcePeg = pegClicked;
+                        }
+                    } else {
+                        int targetPeg = pegClicked;
+                        if (sourcePeg != targetPeg) {
+                            int srcRow = getTopDiscRow(gameState, sourcePeg);
+                            int dstRow = getTopDiscRow(gameState, targetPeg);
+                            
+                            int srcSize = gameState[sourcePeg][srcRow];
+                            int dstSize = (dstRow == -1) ? (NUM_DISCS + 1) : gameState[targetPeg][dstRow];
+                            
+                            if (srcSize < dstSize) {
+                                gameState[sourcePeg][srcRow] = 0;
+                                
+                                anim.active = 1;
+                                anim.discSize = srcSize;
+                                anim.fromPeg = sourcePeg;
+                                anim.toPeg = targetPeg;
+                                anim.phase = 0;
+                                anim.currentX = getPegCenterX(sourcePeg);
+                                anim.currentY = getDiscBottomY(srcRow);
+                                anim.targetYDown = getDiscBottomY(dstRow + 1);
+                                int screenH = gfx_screenHeight();
+                                int pegHeight = (screenH * 2) / 3;
+                                int baseHeight = screenH / 20;
+                                anim.targetYUp = screenH - baseHeight - pegHeight - 30;
+                                anim.targetX = getPegCenterX(targetPeg);
+                            }
+                        }
+                        sourcePeg = -1;
+                    }
                 }
             }
-            
-            isWon = checkWon(gameState);
         }
 
         SDL_Delay(10);
@@ -96,16 +162,36 @@ void drawBackground() {
     gfx_filledRect(0, screenH - baseHeight, screenW - 1, screenH - 1, BLUE);
 }
 
-void calculatePegRect(int pegIndex, struct Rectangle *rect) {
+int getPegCenterX(int pegIndex) {
     int screenW = gfx_screenWidth();
+    int pegSpacing = screenW / (NUM_PEGS + 1);
+    return pegSpacing * (pegIndex + 1);
+}
+
+int getDiscBottomY(int discIndexFromBottom) {
     int screenH = gfx_screenHeight();
+    int baseHeight = screenH / 20;
+    int pegHeight = (screenH * 2) / 3;
+    return screenH - baseHeight - (discIndexFromBottom * pegHeight) / NUM_DISCS;
+}
+
+int getDiscTopY(int discIndexFromBottom) {
+    int screenH = gfx_screenHeight();
+    int baseHeight = screenH / 20;
+    int pegHeight = (screenH * 2) / 3;
+    return screenH - baseHeight - ((discIndexFromBottom + 1) * pegHeight) / NUM_DISCS;
+}
+
+void calculatePegRect(int pegIndex, struct Rectangle *rect) {
+    int screenH = gfx_screenHeight();
+    int screenW = gfx_screenWidth();
     int pegSpacing = screenW / (NUM_PEGS + 1);
     
     int pegWidth = pegSpacing / 10;
     if (pegWidth < 2) pegWidth = 2;
 
     int baseHeight = screenH / 20;
-    int pegX = pegSpacing * (pegIndex + 1);
+    int pegX = getPegCenterX(pegIndex);
     int pegHeight = (screenH * 2) / 3;
     
     rect->x1 = pegX - pegWidth / 2;
@@ -125,12 +211,9 @@ void drawPegs() {
 
 void calculateDiscRect(int pegIndex, int discIndexFromBottom, int discSizeLevel, struct Rectangle *rect) {
     int screenW = gfx_screenWidth();
-    int screenH = gfx_screenHeight();
     
-    int baseHeight = screenH / 20;
     int pegSpacing = screenW / (NUM_PEGS + 1);
-    int pegX = pegSpacing * (pegIndex + 1);
-    int pegHeight = (screenH * 2) / 3;
+    int pegX = getPegCenterX(pegIndex);
     
     int maxDiscWidth = pegSpacing - (pegSpacing / 10);
     int minDiscWidth = pegSpacing / 5;
@@ -142,8 +225,8 @@ void calculateDiscRect(int pegIndex, int discIndexFromBottom, int discSizeLevel,
     
     int currentDiscWidth = maxDiscWidth - discSizeLevel * discWidthStep;
     
-    int discBottomY = screenH - baseHeight - (discIndexFromBottom * pegHeight) / NUM_DISCS;
-    int discTopY = screenH - baseHeight - ((discIndexFromBottom + 1) * pegHeight) / NUM_DISCS;
+    int discBottomY = getDiscBottomY(discIndexFromBottom);
+    int discTopY = getDiscTopY(discIndexFromBottom);
     
     rect->x1 = pegX - currentDiscWidth / 2;
     rect->x2 = pegX + currentDiscWidth / 2;
@@ -171,10 +254,43 @@ void drawDiscs(int gameState[NUM_PEGS][NUM_DISCS]) {
     }
 }
 
-void drawAll(int gameState[NUM_PEGS][NUM_DISCS]) {
+void drawAnimatedDisc(struct AnimatedDisc *anim) {
+    if (!anim->active) return;
+    
+    int discSizeLevel = NUM_DISCS - anim->discSize;
+    int screenW = gfx_screenWidth();
+    int pegSpacing = screenW / (NUM_PEGS + 1);
+    int maxDiscWidth = pegSpacing - (pegSpacing / 10);
+    int minDiscWidth = pegSpacing / 5;
+    
+    int discWidthStep = 0;
+    if (NUM_DISCS > 1) {
+        discWidthStep = (maxDiscWidth - minDiscWidth) / (NUM_DISCS - 1);
+    }
+    
+    int currentDiscWidth = maxDiscWidth - discSizeLevel * discWidthStep;
+    
+    int discBottomY = getDiscBottomY(0);
+    int discTopY = getDiscTopY(0);
+    int calculatedHeight = discBottomY - discTopY;
+    int discGap = (calculatedHeight > 4) ? 1 : 0;
+    
+    int y2 = anim->currentY;
+    int y1 = anim->currentY - calculatedHeight + discGap;
+    int x1 = anim->currentX - currentDiscWidth / 2;
+    int x2 = anim->currentX + currentDiscWidth / 2;
+    
+    gfx_filledRect(x1, y1, x2, y2, RED);
+    gfx_rect(x1, y1, x2, y2, WHITE);
+}
+
+void drawAll(int gameState[NUM_PEGS][NUM_DISCS], struct AnimatedDisc *anim) {
     drawBackground();
     drawPegs();
     drawDiscs(gameState);
+    if (anim != NULL) {
+        drawAnimatedDisc(anim);
+    }
 }
 
 int getTopDiscRow(int gameState[NUM_PEGS][NUM_DISCS], int pegIndex) {
