@@ -41,6 +41,29 @@ All dimensions are fully parametrized -- changing the number of discs or pegs au
 
 A "Congratulation" message is displayed when the puzzle is solved.
 
+### Tetris (`tetris/`)
+
+A graphical implementation of the classic Tetris game. Pieces fall from the top of the screen, and the player must rotate and move them to form complete rows. Completed rows are cleared, and the game speeds up as the player progresses.
+
+**Configuration** (compile-time constants in `pieces.h`):
+
+| Constant       | Default | Description                      |
+| -------------- | ------- | -------------------------------- |
+| `BOARD_WIDTH`  | 10      | Number of columns on the board   |
+| `BOARD_HEIGHT` | 20      | Number of rows on the board      |
+| `DROP_SPEED`   | 500     | Initial drop speed (ms per step) |
+
+**Controls:**
+
+| Key           | Action            |
+| ------------- | ----------------- |
+| `Arrow Left`  | Move piece left   |
+| `Arrow Right` | Move piece right  |
+| `Arrow Up`    | Rotate piece      |
+| `Arrow Down`  | Drop piece faster |
+| `Space`       | Hard drop         |
+| `Escape`      | Quit the game     |
+
 ## Building
 
 Requires GCC, SDL2, and SDL2_gfx.
@@ -48,6 +71,7 @@ Requires GCC, SDL2, and SDL2_gfx.
 ```sh
 cd polygon && make
 cd hanoi && make
+cd tetris && make
 ```
 
 Compiler flags: `-g -Wall -pedantic`. The Hanoi project additionally enables `-fsanitize=undefined` for boundary error checking.
@@ -57,4 +81,5 @@ Compiler flags: `-g -Wall -pedantic`. The Hanoi project additionally enables `-f
 ```sh
 ./polygon/polygon
 ./hanoi/hanoi
+./tetris/tetris
 ```
