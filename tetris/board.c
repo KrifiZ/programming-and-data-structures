@@ -7,6 +7,7 @@ char board[BOARD_H][BOARD_W];
 int current_piece, current_rotation, current_x, current_y;
 int next_piece;
 
+int block_size;
 int board_start_x, board_start_y;
 int board_w_pixels, board_h_pixels;
 int screen_w, screen_h;

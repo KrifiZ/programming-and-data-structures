@@ -21,8 +21,13 @@ int main(int argc, char *argv[])
     screen_w = gfx_screenWidth();
     screen_h = gfx_screenHeight();
 
-    board_w_pixels = BOARD_W * BLOCK_SIZE;
-    board_h_pixels = BOARD_H * BLOCK_SIZE;
+    int max_w = screen_w / (BOARD_W + 2 * (1 + PIECE_SIZE));
+    int max_h = screen_h / (BOARD_H + 2);
+    block_size = max_w < max_h ? max_w : max_h;
+    if (block_size < 1) block_size = 1;
+
+    board_w_pixels = BOARD_W * block_size;
+    board_h_pixels = BOARD_H * block_size;
 
     board_start_x = (screen_w - board_w_pixels) / 2;
     board_start_y = (screen_h - board_h_pixels) / 2;
