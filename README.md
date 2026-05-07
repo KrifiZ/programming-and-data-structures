@@ -64,6 +64,34 @@ A graphical implementation of the classic Tetris game. Pieces fall from the top 
 | `Space`       | Hard drop         |
 | `Escape`      | Quit the game     |
 
+### Text Processing (`text_processing/`)
+
+A command-line program that reads octal integers from standard input (one per line, whitespace-separated) and prints their sum in octal along with the original input numbers.
+
+Each token must consist solely of octal digits (`0`–`7`). Any token containing other characters causes the program to exit with an error. The addition is performed digit-by-digit in base 8 with carry, operating on arbitrary-length numbers stored as strings.
+
+Memory allocation is wrapped by `rand_malloc` — a fault-injection layer that randomly returns `NULL` to stress-test all allocation failure paths under Valgrind.
+
+**Input format:** whitespace-separated octal integers on stdin (e.g. via `./test < input.txt`).
+
+**Output:**
+```
+Sum:
+<octal sum>
+
+Input numbers:
+<number 1>
+<number 2>
+...
+```
+
+**Error handling:**
+
+| Exit code | Cause                                      |
+| --------- | ------------------------------------------ |
+| `0`       | Success                                    |
+| `1`       | Invalid token (non-octal digit) or alloc failure |
+
 ## Building
 
 Requires GCC, SDL2, and SDL2_gfx.
@@ -72,6 +100,7 @@ Requires GCC, SDL2, and SDL2_gfx.
 cd polygon && make
 cd hanoi && make
 cd tetris && make
+cd text_processing && make
 ```
 
 Compiler flags: `-g -Wall -pedantic`. The Hanoi project additionally enables `-fsanitize=undefined` for boundary error checking.
@@ -82,4 +111,5 @@ Compiler flags: `-g -Wall -pedantic`. The Hanoi project additionally enables `-f
 ./polygon/polygon
 ./hanoi/hanoi
 ./tetris/tetris
+./text_processing/test < text_processing/input.txt
 ```
