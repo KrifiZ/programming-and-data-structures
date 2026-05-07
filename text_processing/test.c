@@ -8,8 +8,36 @@ static char* getLine(int* err);
 static int   isOctalDigit(int c);
 static int   addInto(char** sumBuf, size_t* sumLen, size_t* sumCap, const char* b);
 static void  freeNumbers(char** arr, size_t count);
+static int   readNumbers(char*** out, size_t* outCount);
+static char* computeSum(char** numbers, size_t count);
+static void  printResult(const char* sum, char** numbers, size_t count);
 
 int main(void)
+{
+    char** numbers = NULL;
+    size_t count = 0;
+
+    int rc = readNumbers(&numbers, &count);
+    if (rc != 0) {
+        freeNumbers(numbers, count);
+        return 1;
+    }
+
+    char* sum = computeSum(numbers, count);
+    if (sum == NULL) {
+        freeNumbers(numbers, count);
+        return 1;
+    }
+
+    printResult(sum, numbers, count);
+    free(sum);
+    freeNumbers(numbers, count);
+    return 0;
+}
+
+/* Reads octal numbers from stdin into a dynamically grown array.
+   Returns 0 on success, 1 on invalid input, 2 on allocation failure. */
+static int readNumbers(char*** out, size_t* outCount)
 {
     char** numbers = NULL;
     size_t count = 0;
@@ -46,17 +74,22 @@ int main(void)
         numbers[count++] = line;
     }
 
+    *out = numbers;
+    *outCount = count;
+
     if (errCode == 1) {
         fprintf(stderr, "Error: invalid input format\n");
-        freeNumbers(numbers, count);
         return 1;
     }
     if (errCode == 2) {
         fprintf(stderr, "Error: memory allocation failure\n");
-        freeNumbers(numbers, count);
-        return 1;
+        return 2;
     }
+    return 0;
+}
 
+static char* computeSum(char** numbers, size_t count)
+{
     char*  sumBuf = NULL;
     size_t sumLen = 0;
     size_t sumCap = 0;
@@ -65,8 +98,7 @@ int main(void)
         if (!addInto(&sumBuf, &sumLen, &sumCap, numbers[i])) {
             fprintf(stderr, "Error: memory allocation failure\n");
             free(sumBuf);
-            freeNumbers(numbers, count);
-            return 1;
+            return NULL;
         }
     }
 
@@ -76,8 +108,7 @@ int main(void)
             if (tmp == NULL) {
                 fprintf(stderr, "Error: memory allocation failure\n");
                 free(sumBuf);
-                freeNumbers(numbers, count);
-                return 1;
+                return NULL;
             }
             sumBuf = tmp;
             sumCap = 2;
@@ -94,16 +125,16 @@ int main(void)
         sumBuf[sumLen - 1 - i] = t;
     }
     sumBuf[sumLen] = '\0';
+    return sumBuf;
+}
 
-    printf("Sum:\n%s\n\n", sumBuf);
+static void printResult(const char* sum, char** numbers, size_t count)
+{
+    printf("Sum:\n%s\n\n", sum);
     printf("Input numbers:\n");
     for (size_t i = 0; i < count; i++) {
         printf("%s\n", numbers[i]);
     }
-
-    free(sumBuf);
-    freeNumbers(numbers, count);
-    return 0;
 }
 
 static int isOctalDigit(int c)
@@ -129,8 +160,8 @@ static char* getLine(int* err)
     size_t len = 0;
     size_t cap = 0;
     while (c != EOF && !isspace(c)) {
-        if (len + 1 >= cap) { /* +1 na '\0' */
-            size_t newCap = cap == 0 ? 1024 : cap * 2;
+        if (len + 2 > cap) { /* +2: miejsce na znak i '\0' */
+            size_t newCap = cap == 0 ? 1 : cap * 2;
             char* tmp = realloc(text, newCap);
             if (tmp == NULL) {
                 free(text);
